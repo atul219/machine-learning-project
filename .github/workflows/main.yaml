@@ -85,6 +85,25 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: 'true'
+
+      - name: Clean up Docker space before pull
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          
+          echo "=== Docker system info ==="
+          docker system df
+          
+          echo "=== Cleaning up Docker ==="
+          # Remove unused containers, networks, images, and build cache
+          docker system prune -a -f
+          
+          # Remove dangling volumes
+          docker volume prune -f
+          
+          echo "=== Disk space after cleanup ==="
+          df -h
+          docker system df
           
       - name: Pull latest images
         run: |
@@ -117,6 +136,6 @@ jobs:
            -e 'AWS_REGION=${{ secrets.AWS_REGION }}' \
            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
-      - name: Clean previous images and containers
-        run: |
-         docker system prune -f
+      # - name: Clean previous images and containers
+      #   run: |
+      #    docker system prune -f
