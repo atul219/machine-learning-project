@@ -18,6 +18,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Lint code
         run: echo "Linting repository"
@@ -32,13 +33,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Install Utilities
         run: |
           sudo apt-get update
           sudo apt-get install -y jq unzip
 
+
       - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -47,6 +51,9 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'true'
         uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: 'true'
@@ -64,6 +71,7 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
           
           
   Continuous-Deployment:
@@ -72,8 +80,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -85,44 +95,10 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: 'true'
-
-      - name: Clean up Docker space before pull
-        run: |
-          echo "=== Disk space before cleanup ==="
-          df -h
-          
-          echo "=== Docker system info ==="
-          docker system df
-          
-          echo "=== Cleaning up Docker ==="
-          # Remove unused containers, networks, images, and build cache
-          docker system prune -a -f
-          
-          # Remove dangling volumes
-          docker volume prune -f
-          
-          echo "=== Disk space after cleanup ==="
-          df -h
-          docker system df
-          
+      
       - name: Pull latest images
         run: |
-          # Wait a moment for image to be available
-          sleep 10
-          # Pull with retry logic
-          for i in {1..3}; do
-            if docker pull ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest; then
-              echo "Successfully pulled image"
-              break
-            else
-              echo "Pull attempt $i failed, retrying in 10 seconds..."
-              sleep 10
-            fi
-          done
-          
-      # - name: Pull latest images
-      #   run: |
-      #    docker pull ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+         docker pull ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
          
       - name: Stop and remove container if running
         run: |
@@ -136,6 +112,6 @@ jobs:
            -e 'AWS_REGION=${{ secrets.AWS_REGION }}' \
            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
-      # - name: Clean previous images and containers
-      #   run: |
-      #    docker system prune -f
+      - name: Clean previous images and containers
+        run: |
+         docker system prune -f
